@@ -1,0 +1,38 @@
+name: Go App GitFlow Automation Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v3
+
+      - name: Build Target Docker Image
+        run: |
+          echo "Инициализация сборки Docker-образа для коммита ${{ github.sha }}..."
+          docker build -t go-demo-app:latest .
+
+      - name: Purge Legacy Container
+        run: |
+          echo "Проверка наличия запущенных контейнеров с аналогичным именем..."
+          docker stop go-app-instance || true
+          docker rm go-app-instance || true
+
+      - name: Deploy Updated Container
+        run: |
+          echo "Запуск нового контейнера на порту 8888..."
+          docker run -d --name go-app-instance -p 8888:8888 go-demo-app:latest
+
+      - name: Execute Automated Integration Test
+        run: |
+          echo "Ожидание инициализации сетевого интерфейса веб-сервера..."
+          sleep 3
+          echo "Выполнение проверочного HTTP-запроса к локальному эндпоинту..."
+          curl -f http://localhost:8888/health
+          echo "Пайплайн успешно выполнен. Приложение функционирует штатно."
+
